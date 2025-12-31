@@ -5,9 +5,10 @@ import { useState, useRef, useEffect } from 'react'
 interface VoiceRecorderProps {
   onTranscriptUpdate: (text: string) => void
   interviewId: string
+  onRecordingComplete?: (fullTranscript: string) => void
 }
 
-export default function VoiceRecorder({ onTranscriptUpdate, interviewId }: VoiceRecorderProps) {
+export default function VoiceRecorder({ onTranscriptUpdate, interviewId, onRecordingComplete }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [transcript, setTranscript] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -20,6 +21,7 @@ export default function VoiceRecorder({ onTranscriptUpdate, interviewId }: Voice
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const audioChunksRef = useRef<Float32Array[]>([])
   const lastProcessTimeRef = useRef<number>(0)
+  const fullTranscriptRef = useRef<string>('')
 
   useEffect(() => {
     return () => {
@@ -31,6 +33,7 @@ export default function VoiceRecorder({ onTranscriptUpdate, interviewId }: Voice
     try {
       setError('')
       setPermissionDenied(false)
+      fullTranscriptRef.current = '' // Reset transcript on new recording
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -100,7 +103,15 @@ export default function VoiceRecorder({ onTranscriptUpdate, interviewId }: Voice
       streamRef.current = null
     }
     
+    // Send complete transcript when recording stops
+    if (onRecordingComplete && fullTranscriptRef.current.trim()) {
+      console.log('Sending complete transcript:', fullTranscriptRef.current)
+      onRecordingComplete(fullTranscriptRef.current)
+      fullTranscriptRef.current = '' // Reset after sending
+    }
+    
     setIsRecording(false)
+    setTranscript([]) // Clear display transcript
     console.log('Recording stopped')
   }
 
@@ -202,8 +213,32 @@ export default function VoiceRecorder({ onTranscriptUpdate, interviewId }: Voice
       console.log('Transcription result:', data)
       
       if (data.text && data.text.trim()) {
+        // Filter spurious phrases
+        const spuriousPhrases = [
+          'thank you',
+          'thank you for watching',
+          'thanks for watching',
+          'please subscribe',
+          'like and subscribe',
+          'see you next time',
+          'bye bye',
+          'thank you.',
+          'thanks.',
+        ]
+
+        const cleanText = data.text.trim().toLowerCase()
+        
+        if (cleanText.length < 3) return
+        if (spuriousPhrases.some(phrase => cleanText === phrase)) {
+          console.log('Filtered spurious phrase:', data.text)
+          return
+        }
+
         setTranscript(prev => [...prev, data.text])
         onTranscriptUpdate(data.text)
+        
+        // Accumulate full transcript
+        fullTranscriptRef.current += (fullTranscriptRef.current ? ' ' : '') + data.text.trim()
       }
 
     } catch (err: any) {
@@ -247,14 +282,14 @@ export default function VoiceRecorder({ onTranscriptUpdate, interviewId }: Voice
             onClick={startRecording}
             className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 font-medium"
           >
-            Start Recording
+            🎤 Start Recording
           </button>
         ) : (
           <button
             onClick={stopRecording}
             className="flex-1 bg-red-600 text-white py-3 px-6 rounded-lg hover:bg-red-700 font-medium"
           >
-            Stop Recording
+            ⏹️ Stop & Submit
           </button>
         )}
       </div>
