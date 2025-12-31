@@ -27,6 +27,7 @@ export default function InterviewPage() {
   const [currentAiQuestion, setCurrentAiQuestion] = useState('')
   const [showHistory, setShowHistory] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [documentGenerating, setDocumentGenerating] = useState(false)
   const params = useParams()
   const router = useRouter()
   const voiceRecorderKeyRef = useRef(0)
@@ -55,7 +56,7 @@ export default function InterviewPage() {
 
       if (error) {
         console.error('Fetch error:', error)
-        setError('Interview not found')
+        setError('We couldn\'t find this interview. It may have been deleted.')
         setLoading(false)
         return
       }
@@ -63,12 +64,10 @@ export default function InterviewPage() {
       setInterview(data)
       setLoading(false)
 
-      // If conversation is empty and we haven't initialized, get first question
       if (!hasInitializedRef.current && (!data.conversation_history || data.conversation_history.length === 0)) {
         hasInitializedRef.current = true
         await getFirstQuestion(user.id, data.id)
       } else if (data.conversation_history && data.conversation_history.length > 0) {
-        // Find the last AI question
         const lastAiEntry = [...data.conversation_history]
           .reverse()
           .find((entry: any) => entry.speaker === 'AI')
@@ -80,7 +79,7 @@ export default function InterviewPage() {
 
     } catch (err) {
       console.error('Error:', err)
-      setError('Failed to load interview')
+      setError('Something went wrong loading the interview. Please try refreshing the page.')
       setLoading(false)
     }
   }
@@ -102,12 +101,11 @@ export default function InterviewPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to get first question')
+        throw new Error(data.error || 'Failed to start interview')
       }
 
       setCurrentAiQuestion(data.aiResponse)
       
-      // Refresh interview data
       const { data: updatedInterview } = await supabase
         .from('interviews')
         .select('*')
@@ -120,7 +118,7 @@ export default function InterviewPage() {
 
     } catch (err: any) {
       console.error('Error getting first question:', err)
-      setError(err.message || 'Failed to start interview')
+      setError('We couldn\'t start the interview. Please try again.')
     } finally {
       setAiThinking(false)
     }
@@ -131,8 +129,7 @@ export default function InterviewPage() {
 
     try {
       setAiThinking(true)
-
-      console.log('Sending transcript to AI:', fullTranscript)
+      setError('')
 
       const response = await fetch('/api/interview/respond', {
         method: 'POST',
@@ -152,7 +149,6 @@ export default function InterviewPage() {
 
       setCurrentAiQuestion(data.aiResponse)
 
-      // Refresh interview data from database
       const { data: updatedInterview } = await supabase
         .from('interviews')
         .select('*')
@@ -162,7 +158,6 @@ export default function InterviewPage() {
       if (updatedInterview) {
         setInterview(updatedInterview)
         
-        // If interview is complete, update status
         if (data.isComplete) {
           setInterview({ ...updatedInterview, status: 'completed' })
         }
@@ -170,7 +165,7 @@ export default function InterviewPage() {
 
     } catch (err: any) {
       console.error('Error processing transcript:', err)
-      setError(err.message || 'Failed to process your response')
+      setError('We couldn\'t process your response. Please try recording again.')
     } finally {
       setAiThinking(false)
     }
@@ -190,12 +185,14 @@ export default function InterviewPage() {
 
       if (error) {
         console.error('Error pausing interview:', error)
+        setError('Could not pause the interview. Please try again.')
       } else {
         voiceRecorderKeyRef.current += 1
         setInterview({ ...interview, status: 'paused' })
       }
     } catch (err) {
       console.error('Error:', err)
+      setError('Could not pause the interview. Please try again.')
     }
   }
 
@@ -213,12 +210,15 @@ export default function InterviewPage() {
 
       if (error) {
         console.error('Error resuming interview:', error)
+        setError('Could not resume the interview. Please try again.')
       } else {
         voiceRecorderKeyRef.current += 1
         setInterview({ ...interview, status: 'in_progress' })
+        setError('')
       }
     } catch (err) {
       console.error('Error:', err)
+      setError('Could not resume the interview. Please try again.')
     }
   }
 
@@ -226,18 +226,17 @@ export default function InterviewPage() {
     if (!interview) return
 
     const confirmed = window.confirm(
-      '⚠️ WARNING: Terminating the interview early will mark it as INCOMPLETE.\n\n' +
-      'The AI has not finished gathering all critical information about the equipment.\n\n' +
-      'Are you absolutely sure you want to terminate this interview?'
+      'Are you sure you want to end this interview early?\n\n' +
+      'The AI hasn\'t finished gathering all the information yet. You can always pause and come back later instead.\n\n' +
+      'End interview now?'
     )
 
     if (!confirmed) return
 
     try {
-      // Add termination note to conversation history
       const terminationEntry = {
         timestamp: new Date().toISOString(),
-        text: '[INTERVIEW TERMINATED BY USER - INCOMPLETE]\n\nThis interview was terminated before completion. Not all critical equipment information was gathered. The AI interview process did not signal completion.',
+        text: '[INTERVIEW ENDED EARLY]\n\nThis interview was ended before the AI finished gathering all critical equipment information.',
         phase: interview.current_phase,
         speaker: 'SYSTEM'
       }
@@ -255,6 +254,7 @@ export default function InterviewPage() {
 
       if (error) {
         console.error('Error terminating interview:', error)
+        setError('Could not end the interview. Please try again.')
       } else {
         voiceRecorderKeyRef.current += 1
         setInterview({ 
@@ -262,10 +262,10 @@ export default function InterviewPage() {
           status: 'terminated',
           conversation_history: updatedHistory
         })
-        alert('Interview has been terminated and marked as incomplete.')
       }
     } catch (err) {
       console.error('Error:', err)
+      setError('Could not end the interview. Please try again.')
     }
   }
 
@@ -273,130 +273,200 @@ export default function InterviewPage() {
     if (!interview) return
 
     try {
+      setDocumentGenerating(true)
       const downloadUrl = `/api/interview/${interview.id}/generate`
       window.open(downloadUrl, '_blank')
-      alert('Document generation started! Your download should begin shortly.')
+      
+      setTimeout(() => {
+        setDocumentGenerating(false)
+      }, 2000)
     } catch (err) {
       console.error('Error generating document:', err)
-      alert('Failed to generate document. Please try again.')
+      setError('Could not generate the document. Please try again.')
+      setDocumentGenerating(false)
     }
+  }
+
+  const retryInitialize = () => {
+    setError('')
+    setLoading(true)
+    initializeInterview()
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg">Loading interview...</p>
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-8 w-8 bg-blue-600 rounded-full opacity-20 animate-ping"></div>
+            </div>
+          </div>
+          <p className="text-lg font-medium text-gray-700">Loading your interview...</p>
+          <p className="text-sm text-gray-500 mt-1">This will just take a moment</p>
         </div>
       </div>
     )
   }
 
-  if (error || !interview) {
+  if (error && !interview) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4 text-lg">{error || 'Interview not found'}</p>
-          <Link href="/dashboard" className="text-blue-600 hover:underline">
-            Back to Dashboard
-          </Link>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Oops! Something went wrong</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <div className="space-y-3">
+            <button
+              onClick={retryInitialize}
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+            >
+              Try Again
+            </button>
+            <Link
+              href="/dashboard"
+              className="block w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-200 font-medium transition-colors"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
       </div>
     )
   }
 
-  const isCompleted = interview.status === 'completed'
-  const isPaused = interview.status === 'paused'
-  const isInProgress = interview.status === 'in_progress'
-  const isTerminated = interview.status === 'terminated'
+  const isCompleted = interview?.status === 'completed'
+  const isPaused = interview?.status === 'paused'
+  const isInProgress = interview?.status === 'in_progress'
+  const isTerminated = interview?.status === 'terminated'
 
-  // Get conversation entries
-  const conversationEntries = interview.conversation_history || []
+  const conversationEntries = interview?.conversation_history || []
   const smeEntries = conversationEntries.filter((e: any) => e.speaker === 'SME')
   const aiEntries = conversationEntries.filter((e: any) => e.speaker === 'AI')
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex justify-between items-start mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">AI Interview Session</h1>
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">AI Interview Session</h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                   isCompleted ? 'bg-green-100 text-green-800' :
                   isTerminated ? 'bg-red-100 text-red-800' :
                   isPaused ? 'bg-yellow-100 text-yellow-800' :
                   'bg-blue-100 text-blue-800'
                 }`}>
-                  {interview.status === 'in_progress' ? 'In Progress' : 
-                   interview.status === 'paused' ? 'Paused' : 
-                   interview.status === 'terminated' ? 'Terminated (Incomplete)' :
-                   'Completed'}
+                  {interview?.status === 'in_progress' ? '● In Progress' : 
+                   interview?.status === 'paused' ? '⏸ Paused' : 
+                   interview?.status === 'terminated' ? '⚠ Ended Early' :
+                   '✓ Complete'}
                 </span>
                 <span className="text-gray-500 text-sm">
-                  Phase {interview.current_phase} - Critical Equipment Info
+                  Phase {interview?.current_phase} - Critical Equipment Info
                 </span>
               </div>
             </div>
             <Link 
               href="/dashboard"
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 hover:text-blue-700 font-medium text-sm hover:underline"
             >
-              Back to Dashboard
+              ← Back to Dashboard
             </Link>
           </div>
 
-          {/* Interview Metadata */}
-          <div className="grid grid-cols-2 gap-6 pt-4 border-t">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Subject Matter Expert</p>
-              <p className="font-semibold text-lg">{interview.sme_name}</p>
-              <p className="text-gray-600">{interview.sme_title}</p>
+          {/* Metadata Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+            <div className="bg-blue-50 rounded-lg p-4">
+              <p className="text-xs text-blue-600 font-medium mb-1">Subject Matter Expert</p>
+              <p className="font-semibold text-gray-900">{interview?.sme_name}</p>
+              <p className="text-sm text-gray-600">{interview?.sme_title}</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Equipment Being Documented</p>
-              <p className="font-semibold text-lg">{interview.equipment_name}</p>
-              <p className="text-gray-600">{interview.equipment_location}</p>
+            <div className="bg-indigo-50 rounded-lg p-4">
+              <p className="text-xs text-indigo-600 font-medium mb-1">Equipment</p>
+              <p className="font-semibold text-gray-900">{interview?.equipment_name}</p>
+              <p className="text-sm text-gray-600">{interview?.equipment_location}</p>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-3 gap-6">
-          {/* Left Column - AI Question & Voice Recorder */}
-          <div className="col-span-2 space-y-6">
+        {/* Error Banner */}
+        {error && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-sm">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-red-800 font-medium">{error}</p>
+                <button
+                  onClick={() => setError('')}
+                  className="text-red-600 text-sm hover:text-red-700 mt-1 font-medium"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Main Interview Area */}
+          <div className="lg:col-span-2 space-y-6">
             
-            {/* Terminated Warning */}
+            {/* Terminated State */}
             {isTerminated && (
-              <div className="bg-red-50 border-l-4 border-red-600 p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold text-red-900 mb-3">
-                  ⚠️ Interview Terminated - Incomplete
-                </h3>
-                <p className="text-gray-700 mb-4">
-                  This interview was terminated by the user before the AI completed gathering all critical equipment information. The documentation may be incomplete.
-                </p>
+              <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Interview Ended Early</h3>
+                    <p className="text-gray-700 text-sm">
+                      This interview was ended before the AI finished gathering all critical information. 
+                      You can still generate a document with the information collected so far.
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={handleGenerateDocument}
-                  className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-medium"
+                  disabled={documentGenerating}
+                  className="w-full sm:w-auto bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  📄 Generate Partial Documentation
+                  {documentGenerating ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Generating...
+                    </span>
+                  ) : '📄 Generate Partial Documentation'}
                 </button>
               </div>
             )}
 
-            {/* Current AI Question */}
+            {/* AI Question Display */}
             {currentAiQuestion && !isCompleted && !isTerminated && (
-              <div className="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-lg shadow">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                    AI
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-600 rounded-xl p-6 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+                    <span className="text-white font-bold text-lg">AI</span>
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-blue-900 mb-2">Current Question:</h3>
-                    <p className="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">
+                    <h3 className="font-semibold text-blue-900 mb-2 text-sm">Current Question:</h3>
+                    <p className="text-gray-800 text-base leading-relaxed whitespace-pre-wrap">
                       {currentAiQuestion}
                     </p>
                   </div>
@@ -406,88 +476,139 @@ export default function InterviewPage() {
 
             {/* AI Thinking State */}
             {aiThinking && (
-              <div className="bg-purple-50 border-l-4 border-purple-600 p-6 rounded-lg shadow">
-                <div className="flex items-center gap-3">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-                  <p className="text-purple-900 font-medium">AI is processing your response...</p>
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-purple-200 border-t-purple-600"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-6 w-6 bg-purple-600 rounded-full opacity-20 animate-ping"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-purple-900 font-semibold">AI is analyzing your response...</p>
+                    <p className="text-purple-700 text-sm">This usually takes just a few seconds</p>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Interview Complete - Generate Document */}
+            {/* Completed State */}
             {isCompleted && (
-              <div className="bg-green-50 border-l-4 border-green-600 p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold text-green-900 mb-3">
-                  ✓ Interview Complete!
-                </h3>
-                <p className="text-gray-700 mb-4">
-                  {currentAiQuestion}
-                </p>
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Interview Complete! 🎉</h3>
+                    <p className="text-gray-700 text-sm mb-3">{currentAiQuestion}</p>
+                  </div>
+                </div>
                 <button
                   onClick={handleGenerateDocument}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-medium"
+                  disabled={documentGenerating}
+                  className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  📄 Generate Documentation
+                  {documentGenerating ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Generating Document...
+                    </span>
+                  ) : '📄 Generate Final Documentation'}
                 </button>
               </div>
             )}
 
-            {/* Voice Recorder */}
+            {/* Voice Recorder with Instructions */}
             {!isCompleted && !isTerminated && isInProgress && !aiThinking ? (
-              <div className="bg-white rounded-lg shadow">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+                {/* Helpful Instructions */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 p-4 rounded-t-xl">
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    How it works
+                  </h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold">1.</span>
+                      <span>Click "Start Recording" and speak naturally - just like having a conversation</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold">2.</span>
+                      <span>Click "Stop & Submit" when you're done answering</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold">3.</span>
+                      <span>The AI will ask follow-up questions to get more details</span>
+                    </li>
+                  </ul>
+                </div>
+                
                 <VoiceRecorder 
                   key={voiceRecorderKeyRef.current}
-                  interviewId={interview.id}
+                  interviewId={interview?.id || ''}
                   onTranscriptUpdate={() => {}}
                   onRecordingComplete={handleTranscriptComplete}
                 />
               </div>
             ) : isPaused ? (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold mb-4">Interview Paused</h3>
-                <p className="text-gray-600 mb-4">
-                  Recording is paused. Your progress has been saved. Click "Resume Interview" below to continue.
-                </p>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Interview Paused</h3>
+                <p className="text-gray-600 mb-1">Your progress has been saved automatically.</p>
+                <p className="text-sm text-gray-500">Click "Resume Interview" below when you're ready to continue.</p>
               </div>
             ) : (isCompleted || isTerminated) ? null : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <p className="text-gray-500 text-center italic">
-                  Please wait for AI to finish processing...
-                </p>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+                <div className="animate-pulse">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
+                </div>
               </div>
             )}
 
             {/* Control Buttons */}
             {!isCompleted && !isTerminated && (
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 {isInProgress && !aiThinking ? (
                   <>
                     <button
                       onClick={handlePause}
-                      className="flex-1 bg-yellow-600 text-white py-3 px-6 rounded-lg hover:bg-yellow-700 font-medium"
+                      className="flex-1 bg-yellow-500 text-white py-3 px-6 rounded-lg hover:bg-yellow-600 font-medium transition-all shadow-sm"
                     >
-                      ⏸️ Pause Interview
+                      ⏸ Pause & Save Progress
                     </button>
                     <button
                       onClick={handleTerminate}
-                      className="flex-1 bg-red-600 text-white py-3 px-6 rounded-lg hover:bg-red-700 font-medium"
+                      className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 font-medium transition-all shadow-sm"
                     >
-                      ⛔ Terminate Interview
+                      End Interview Early
                     </button>
                   </>
                 ) : isPaused ? (
                   <>
                     <button
                       onClick={handleResume}
-                      className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 font-medium"
+                      className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 font-medium transition-all shadow-sm"
                     >
-                      ▶️ Resume Interview
+                      ▶ Resume Interview
                     </button>
                     <button
                       onClick={handleTerminate}
-                      className="flex-1 bg-red-600 text-white py-3 px-6 rounded-lg hover:bg-red-700 font-medium"
+                      className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 font-medium transition-all shadow-sm"
                     >
-                      ⛔ Terminate Interview
+                      End Interview Early
                     </button>
                   </>
                 ) : null}
@@ -495,70 +616,64 @@ export default function InterviewPage() {
             )}
           </div>
 
-          {/* Right Column - Conversation History */}
-          <div className="col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-6">
+          {/* Right Column - Progress Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">
-                  Interview Progress
-                </h3>
+                <h3 className="text-lg font-bold text-gray-900">Progress</h3>
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className="text-sm text-blue-600 hover:underline"
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
                   {showHistory ? 'Hide' : 'Show'} Details
                 </button>
               </div>
 
-              {/* Quick Stats */}
-              <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b">
-                <div>
-                  <p className="text-xs text-gray-500">Questions Asked</p>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-gray-100">
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-blue-600">{aiEntries.length}</p>
+                  <p className="text-xs text-gray-600 mt-1">Questions</p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Responses Given</p>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-green-600">{smeEntries.length}</p>
+                  <p className="text-xs text-gray-600 mt-1">Responses</p>
                 </div>
               </div>
 
-              {/* Collapsible History */}
+              {/* History */}
               {showHistory && (
-                <div className="space-y-4 max-h-[500px] overflow-y-auto">
+                <div className="space-y-3 max-h-[500px] overflow-y-auto">
                   {conversationEntries.length > 0 ? (
                     conversationEntries.map((entry: any, index: number) => (
                       <div 
                         key={index} 
-                        className={`p-3 rounded-lg ${
+                        className={`p-3 rounded-lg text-xs ${
                           entry.speaker === 'AI' 
-                            ? 'bg-blue-50 border-l-2 border-blue-600' 
+                            ? 'bg-blue-50 border-l-2 border-blue-400' 
                             : entry.speaker === 'SYSTEM'
-                            ? 'bg-red-50 border-l-2 border-red-600'
-                            : 'bg-green-50 border-l-2 border-green-600'
+                            ? 'bg-red-50 border-l-2 border-red-400'
+                            : 'bg-green-50 border-l-2 border-green-400'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className={`text-xs font-semibold ${
-                            entry.speaker === 'AI' 
-                              ? 'text-blue-700' 
-                              : entry.speaker === 'SYSTEM'
-                              ? 'text-red-700'
-                              : 'text-green-700'
+                            entry.speaker === 'AI' ? 'text-blue-700' : 
+                            entry.speaker === 'SYSTEM' ? 'text-red-700' : 'text-green-700'
                           }`}>
-                            {entry.speaker === 'AI' ? '🤖 AI' : entry.speaker === 'SYSTEM' ? '⚠️ SYSTEM' : '👤 SME'}
+                            {entry.speaker === 'AI' ? '🤖 AI' : entry.speaker === 'SYSTEM' ? '⚠️ System' : '👤 You'}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {new Date(entry.timestamp).toLocaleTimeString()}
+                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-800 leading-relaxed">
-                          {entry.text.substring(0, 150)}
-                          {entry.text.length > 150 ? '...' : ''}
+                        <p className="text-gray-700 leading-relaxed">
+                          {entry.text.length > 120 ? `${entry.text.substring(0, 120)}...` : entry.text}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 text-sm italic text-center">
+                    <p className="text-gray-400 text-sm italic text-center py-4">
                       No conversation yet
                     </p>
                   )}
