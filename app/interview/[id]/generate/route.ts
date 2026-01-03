@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { generateStructuredDocument } from '@/lib/document-generator-structured'
+import { generateInterviewDocument } from '@/lib/document-generator'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,10 +9,10 @@ const supabase = createClient(
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: interviewId } = await context.params
+    const { id: interviewId } = await params
 
     console.log('Generate document API called for interview:', interviewId)
 
@@ -31,15 +31,13 @@ export async function GET(
       )
     }
 
-    console.log('Generating structured document for:', interview.equipment_name)
+    console.log('Generating document for:', interview.equipment_name)
 
-    // Generate structured DOCX document
-    const documentBuffer = await generateStructuredDocument(interview)
+    // Generate DOCX document
+    const documentBuffer = await generateInterviewDocument(interview)
 
     // Create filename
-    const filename = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Operations_Manual_${new Date().toISOString().split('T')[0]}.docx`
-
-    console.log('Document generated successfully, size:', documentBuffer.length)
+    const filename = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Documentation_${new Date().toISOString().split('T')[0]}.docx`
 
     // Return file with proper headers
     return new NextResponse(documentBuffer, {
@@ -64,4 +62,4 @@ export async function GET(
   }
 }
 
-export const maxDuration = 60
+export const maxDuration = 30
