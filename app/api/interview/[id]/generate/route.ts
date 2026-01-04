@@ -1,54 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { generateStructuredDocument } from '@/lib/document-generator-structured'
+import { createClient } from '@/lib/supabase/server'
+import { generateDocument } from '@/lib/document-generator'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-export async function GET(
+export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: interviewId } = await context.params
-
-    const { data: interview, error: fetchError } = await supabase
+    const supabase = await createClient()
+    
+    // Get the interview
+    const { data: interview, error: interviewError } = await supabase
       .from('interviews')
       .select('*')
-      .eq('id', interviewId)
+      .eq('id', params.id)
       .single()
 
-    if (fetchError || !interview) {
+    if (interviewError || !interview) {
       return NextResponse.json(
         { error: 'Interview not found' },
         { status: 404 }
       )
     }
 
-    const documentBuffer = await generateStructuredDocument(interview)
+    // Generate the document
+    const documentBuffer = await generateDocument(interview)
+    
+    if (!documentBuffer) {
+      return NextResponse.json(
+        { error: 'Failed to generate document' },
+        { status: 500 }
+      )
+    }
 
     const filename = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Operations_Manual_${new Date().toISOString().split('T')[0]}.docx`
 
-    return new NextResponse(new Blob([documentBuffer]), {
+    return new NextResponse(new Blob([new Uint8Array(documentBuffer)]), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': documentBuffer.length.toString(),
       },
     })
-
-  } catch (error: any) {
+  } catch (error) {
+    console.error('Error generating document:', error)
     return NextResponse.json(
-      {
-        error: 'Failed to generate document',
-        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
-      },
+      { error: 'Failed to generate document' },
       { status: 500 }
     )
   }
 }
-
-export const maxDuration = 60
