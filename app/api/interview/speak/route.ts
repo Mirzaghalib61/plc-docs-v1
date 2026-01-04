@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
+        { error: 'Text-to-speech service not configured' },
         { status: 500 }
       )
     }
@@ -27,13 +27,17 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: 'tts-1',
         voice: 'alloy',
-        input: text.substring(0, 4096), // OpenAI limit
+        input: text.substring(0, 4096),
         speed: 1.0,
       }),
     })
 
     if (!response.ok) {
-      throw new Error(`TTS failed: ${response.statusText}`)
+      const error = await response.text()
+      return NextResponse.json(
+        { error: 'Text-to-speech generation failed' },
+        { status: response.status }
+      )
     }
 
     const audioBuffer = await response.arrayBuffer()
@@ -47,7 +51,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('TTS error:', error)
     return NextResponse.json(
       { error: 'Failed to generate speech' },
       { status: 500 }

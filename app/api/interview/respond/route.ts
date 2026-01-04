@@ -12,8 +12,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { interviewId, smeResponse, userId } = body
 
-    console.log('Interview respond API called:', { interviewId, userId })
-
     if (!interviewId) {
       return NextResponse.json(
         { error: 'Interview ID is required' },
@@ -36,7 +34,6 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (fetchError || !interview) {
-      console.error('Interview fetch error:', fetchError)
       return NextResponse.json(
         { error: 'Interview not found or access denied' },
         { status: 404 }
@@ -59,11 +56,9 @@ export async function POST(request: NextRequest) {
       conversationHistory: interview.conversation_history || []
     }
 
-    console.log('Calling interview engine...')
     const result = await getNextQuestion(context, smeResponse)
 
     if (result.error) {
-      console.error('Interview engine error:', result.error)
       return NextResponse.json(
         { error: result.error },
         { status: 500 }
@@ -95,7 +90,6 @@ export async function POST(request: NextRequest) {
 
     if (result.isComplete) {
       updatePayload.status = 'completed'
-      console.log('Interview marked as complete')
     }
 
     const { error: updateError } = await supabase
@@ -105,14 +99,11 @@ export async function POST(request: NextRequest) {
       .eq('user_id', userId)
 
     if (updateError) {
-      console.error('Database update error:', updateError)
       return NextResponse.json(
         { error: 'Failed to save conversation update' },
         { status: 500 }
       )
     }
-
-    console.log('Interview updated successfully')
 
     return NextResponse.json({
       success: true,
@@ -123,12 +114,10 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('Interview respond API error:', error)
-
     return NextResponse.json(
       {
         error: 'Internal server error',
-        details: error?.message || 'Unknown error occurred'
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
       },
       { status: 500 }
     )

@@ -14,9 +14,6 @@ export async function GET(
   try {
     const { id: interviewId } = await context.params
 
-    console.log('Generate document API called for interview:', interviewId)
-
-    // Load interview from database
     const { data: interview, error: fetchError } = await supabase
       .from('interviews')
       .select('*')
@@ -24,24 +21,16 @@ export async function GET(
       .single()
 
     if (fetchError || !interview) {
-      console.error('Interview fetch error:', fetchError)
       return NextResponse.json(
         { error: 'Interview not found' },
         { status: 404 }
       )
     }
 
-    console.log('Generating structured document for:', interview.equipment_name)
-
-    // Generate structured DOCX document
     const documentBuffer = await generateStructuredDocument(interview)
 
-    // Create filename
     const filename = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Operations_Manual_${new Date().toISOString().split('T')[0]}.docx`
 
-    console.log('Document generated successfully, size:', documentBuffer.length)
-
-    // Return file with proper headers
     return new NextResponse(documentBuffer, {
       status: 200,
       headers: {
@@ -52,12 +41,10 @@ export async function GET(
     })
 
   } catch (error: any) {
-    console.error('Document generation error:', error)
-
     return NextResponse.json(
       {
         error: 'Failed to generate document',
-        details: error?.message || 'Unknown error occurred'
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
       },
       { status: 500 }
     )

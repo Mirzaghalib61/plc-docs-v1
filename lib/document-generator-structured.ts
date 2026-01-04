@@ -1,5 +1,15 @@
-import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle, PageBreak } from 'docx'
+import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx'
 import { Packer } from 'docx'
+
+const DEBUG = process.env.NODE_ENV === 'development'
+
+function log(message: string, data?: any) {
+  if (DEBUG && data !== undefined) {
+    console.log(message, data)
+  } else if (DEBUG) {
+    console.log(message)
+  }
+}
 
 interface InterviewData {
   id: string
@@ -37,7 +47,6 @@ interface StructuredContent {
  * Use AI to structure the interview content into logical sections
  */
 async function structureContent(interview: InterviewData): Promise<StructuredContent> {
-  // Combine all SME responses with their context
   const fullTranscript = interview.conversation_history
     .map(entry => `[${entry.speaker}]: ${entry.text}`)
     .join('\n\n')
@@ -139,7 +148,6 @@ Return ONLY the JSON, no markdown formatting.`
     
     const content = response.content[0].text
     
-    // Extract JSON from response
     let jsonMatch = content.match(/\{[\s\S]*\}/)
     
     if (!jsonMatch) {
@@ -153,8 +161,7 @@ Return ONLY the JSON, no markdown formatting.`
     
     return JSON.parse(jsonMatch[0])
   } catch (error) {
-    console.error('AI structuring error:', error)
-    // Return minimal structure if AI fails
+    log('AI structuring error:', error)
     return {
       sections: [{
         title: "Interview Content",
@@ -173,12 +180,10 @@ Return ONLY the JSON, no markdown formatting.`
  * Generate a professionally structured DOCX document
  */
 export async function generateStructuredDocument(interview: InterviewData): Promise<Buffer> {
-  console.log('Generating structured document for:', interview.equipment_name)
+  log('Generating structured document for:', interview.equipment_name)
 
-  // Get structured content from AI
   const structured = await structureContent(interview)
 
-  // Build document sections
   const children: any[] = []
 
   // ========== COVER PAGE ==========
@@ -225,10 +230,12 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
           children: [
             new TableCell({
               children: [new Paragraph({ text: 'Equipment Location:', bold: true })],
-              shading: { fill: 'E3F2FD' }
+              shading: { fill: 'E3F2FD' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
             }),
             new TableCell({
-              children: [new Paragraph(interview.equipment_location)]
+              children: [new Paragraph(interview.equipment_location)],
+              width: { size: 70, type: WidthType.PERCENTAGE }
             })
           ]
         }),
@@ -236,10 +243,12 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
           children: [
             new TableCell({
               children: [new Paragraph({ text: 'Prepared By:', bold: true })],
-              shading: { fill: 'E3F2FD' }
+              shading: { fill: 'E3F2FD' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
             }),
             new TableCell({
-              children: [new Paragraph(`${interview.sme_name}, ${interview.sme_title}`)]
+              children: [new Paragraph(`${interview.sme_name}, ${interview.sme_title}`)],
+              width: { size: 70, type: WidthType.PERCENTAGE }
             })
           ]
         }),
@@ -247,14 +256,16 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
           children: [
             new TableCell({
               children: [new Paragraph({ text: 'Interview Date:', bold: true })],
-              shading: { fill: 'E3F2FD' }
+              shading: { fill: 'E3F2FD' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
             }),
             new TableCell({
               children: [new Paragraph(new Date(interview.created_at).toLocaleDateString('en-US', { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric' 
-              }))]
+              }))],
+              width: { size: 70, type: WidthType.PERCENTAGE }
             })
           ]
         }),
@@ -262,7 +273,8 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
           children: [
             new TableCell({
               children: [new Paragraph({ text: 'Document Status:', bold: true })],
-              shading: { fill: 'E3F2FD' }
+              shading: { fill: 'E3F2FD' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
             }),
             new TableCell({
               children: [new Paragraph(
@@ -274,7 +286,8 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
                 fill: interview.status === 'completed' ? 'C8E6C9' : 
                       interview.status === 'terminated' ? 'FFCDD2' : 
                       'FFF9C4' 
-              }
+              },
+              width: { size: 70, type: WidthType.PERCENTAGE }
             })
           ]
         }),
@@ -282,14 +295,16 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
           children: [
             new TableCell({
               children: [new Paragraph({ text: 'Generated:', bold: true })],
-              shading: { fill: 'E3F2FD' }
+              shading: { fill: 'E3F2FD' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
             }),
             new TableCell({
               children: [new Paragraph(new Date().toLocaleDateString('en-US', { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric' 
-              }))]
+              }))],
+              width: { size: 70, type: WidthType.PERCENTAGE }
             })
           ]
         })
@@ -371,7 +386,6 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
 
   // ========== MAIN CONTENT SECTIONS ==========
   structured.sections.forEach((section, sectionIndex) => {
-    // Section heading with page break (except first section)
     children.push(
       new Paragraph({
         text: section.title,
@@ -382,7 +396,6 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
     )
 
     section.subsections.forEach(subsection => {
-      // Subsection heading
       children.push(
         new Paragraph({
           text: subsection.title,
@@ -391,7 +404,6 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         })
       )
 
-      // Main content paragraph
       if (subsection.content) {
         children.push(
           new Paragraph({
@@ -401,7 +413,6 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         )
       }
 
-      // Bullet points if present
       if (subsection.bulletPoints && subsection.bulletPoints.length > 0) {
         subsection.bulletPoints.forEach(bullet => {
           children.push(
@@ -464,10 +475,12 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
           children: [
             new TableCell({
               children: [new Paragraph({ text: 'Questions Asked:', bold: true })],
-              shading: { fill: 'F5F5F5' }
+              shading: { fill: 'F5F5F5' },
+              width: { size: 40, type: WidthType.PERCENTAGE }
             }),
             new TableCell({
-              children: [new Paragraph(qaCount.toString())]
+              children: [new Paragraph(qaCount.toString())],
+              width: { size: 60, type: WidthType.PERCENTAGE }
             })
           ]
         }),
@@ -475,10 +488,12 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
           children: [
             new TableCell({
               children: [new Paragraph({ text: 'Interview Duration:', bold: true })],
-              shading: { fill: 'F5F5F5' }
+              shading: { fill: 'F5F5F5' },
+              width: { size: 40, type: WidthType.PERCENTAGE }
             }),
             new TableCell({
-              children: [new Paragraph(calculateDuration(interview.created_at, interview.updated_at))]
+              children: [new Paragraph(calculateDuration(interview.created_at, interview.updated_at))],
+              width: { size: 60, type: WidthType.PERCENTAGE }
             })
           ]
         }),
@@ -486,10 +501,12 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
           children: [
             new TableCell({
               children: [new Paragraph({ text: 'Sections Covered:', bold: true })],
-              shading: { fill: 'F5F5F5' }
+              shading: { fill: 'F5F5F5' },
+              width: { size: 40, type: WidthType.PERCENTAGE }
             }),
             new TableCell({
-              children: [new Paragraph(structured.sections.length.toString())]
+              children: [new Paragraph(structured.sections.length.toString())],
+              width: { size: 60, type: WidthType.PERCENTAGE }
             })
           ]
         })
@@ -530,7 +547,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
       properties: {
         page: {
           margin: {
-            top: 1440,  // 1 inch
+            top: 1440,
             right: 1440,
             bottom: 1440,
             left: 1440
@@ -541,9 +558,8 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
     }]
   })
 
-  // Generate buffer
   const buffer = await Packer.toBuffer(doc)
-  console.log('Structured document generated successfully, size:', buffer.length)
+  log('Structured document generated successfully, size:', buffer.length)
   
   return buffer
 }
