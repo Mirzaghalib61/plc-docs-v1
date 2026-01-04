@@ -40,7 +40,7 @@ export async function GET(
     const filename = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Documentation_${new Date().toISOString().split('T')[0]}.docx`
 
     // Return file with proper headers
-    return new NextResponse(documentBuffer, {
+    return new NextResponse(new Blob([new Uint8Array(documentBuffer)]), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
