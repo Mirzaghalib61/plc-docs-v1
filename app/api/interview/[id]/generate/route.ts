@@ -31,7 +31,7 @@ export async function GET(
 
     const filename = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Operations_Manual_${new Date().toISOString().split('T')[0]}.docx`
 
-    return new NextResponse(documentBuffer, {
+    return new NextResponse(new Blob([documentBuffer]), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
