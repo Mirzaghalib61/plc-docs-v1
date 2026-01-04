@@ -489,9 +489,13 @@ function createQASection(interview: InterviewData): Paragraph[] {
   if (conversationPairs.length === 0) {
     paragraphs.push(
       new Paragraph({
-        text: 'No conversation data available.',
-        italics: true,
-        color: '999999',
+        children: [
+          new TextRun({
+            text: 'No conversation data available.',
+            italics: true,
+            color: '999999',
+          })
+        ],
       })
     )
   }

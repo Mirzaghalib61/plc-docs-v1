@@ -201,9 +201,13 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
       spacing: { after: 100 }
     }),
     new Paragraph({
-      text: interview.equipment_location,
+      children: [
+        new TextRun({
+          text: interview.equipment_location,
+          italics: true
+        })
+      ],
       alignment: AlignmentType.CENTER,
-      italics: true,
       spacing: { after: 400 }
     })
   )
@@ -216,7 +220,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Document Title:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Document Title:', bold: true })] })],
               shading: { fill: 'E3F2FD' },
               width: { size: 30, type: WidthType.PERCENTAGE }
             }),
@@ -229,7 +233,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Equipment Location:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Equipment Location:', bold: true })] })],
               shading: { fill: 'E3F2FD' },
               width: { size: 30, type: WidthType.PERCENTAGE }
             }),
@@ -242,7 +246,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Prepared By:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Prepared By:', bold: true })] })],
               shading: { fill: 'E3F2FD' },
               width: { size: 30, type: WidthType.PERCENTAGE }
             }),
@@ -255,7 +259,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Interview Date:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Interview Date:', bold: true })] })],
               shading: { fill: 'E3F2FD' },
               width: { size: 30, type: WidthType.PERCENTAGE }
             }),
@@ -272,7 +276,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Document Status:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Document Status:', bold: true })] })],
               shading: { fill: 'E3F2FD' },
               width: { size: 30, type: WidthType.PERCENTAGE }
             }),
@@ -294,7 +298,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Generated:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Generated:', bold: true })] })],
               shading: { fill: 'E3F2FD' },
               width: { size: 30, type: WidthType.PERCENTAGE }
             }),
@@ -360,8 +364,12 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
   if (structured.skipped_sections && structured.skipped_sections.length > 0) {
     children.push(
       new Paragraph({
-        text: 'Sections Not Covered in This Interview:',
-        bold: true,
+        children: [
+          new TextRun({
+            text: 'Sections Not Covered in This Interview:',
+            bold: true
+          })
+        ],
         spacing: { before: 200, after: 100 }
       })
     )
@@ -474,7 +482,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Questions Asked:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Questions Asked:', bold: true })] })],
               shading: { fill: 'F5F5F5' },
               width: { size: 40, type: WidthType.PERCENTAGE }
             }),
@@ -487,7 +495,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Interview Duration:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Interview Duration:', bold: true })] })],
               shading: { fill: 'F5F5F5' },
               width: { size: 40, type: WidthType.PERCENTAGE }
             }),
@@ -500,7 +508,7 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
         new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ text: 'Sections Covered:', bold: true })],
+              children: [new Paragraph({ children: [new TextRun({ text: 'Sections Covered:', bold: true })] })],
               shading: { fill: 'F5F5F5' },
               width: { size: 40, type: WidthType.PERCENTAGE }
             }),
@@ -526,18 +534,26 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
       spacing: { before: 200, after: 200 }
     }),
     new Paragraph({
-      text: 'Generated by AI Documentation System',
+      children: [
+        new TextRun({
+          text: 'Generated by AI Documentation System',
+          italics: true,
+          size: 20
+        })
+      ],
       alignment: AlignmentType.CENTER,
-      italics: true,
-      size: 20,
       spacing: { after: 50 }
     }),
     new Paragraph({
-      text: 'Preserving Critical Equipment Knowledge',
-      alignment: AlignmentType.CENTER,
-      italics: true,
-      size: 18,
-      color: '666666'
+      children: [
+        new TextRun({
+          text: 'Preserving Critical Equipment Knowledge',
+          italics: true,
+          size: 18,
+          color: '666666'
+        })
+      ],
+      alignment: AlignmentType.CENTER
     })
   )
 
