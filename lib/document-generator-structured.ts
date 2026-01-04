@@ -342,8 +342,12 @@ export async function generateStructuredDocument(interview: InterviewData): Prom
                     spacing: { after: 100 }
                   }),
                   new Paragraph({
-                    text: 'This document is INCOMPLETE. The interview was ended before all critical information was gathered. Use with caution and schedule a follow-up session to complete missing sections.',
-                    size: 22
+                    children: [
+                      new TextRun({
+                        text: 'This document is INCOMPLETE. The interview was ended before all critical information was gathered. Use with caution and schedule a follow-up session to complete missing sections.',
+                        size: 22
+                      })
+                    ]
                   })
                 ],
                 shading: { fill: 'FFEBEE' },
