@@ -4,16 +4,17 @@ import { generateInterviewDocument } from '@/lib/document-generator'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
     
     // Get the interview
     const { data: interview, error: interviewError } = await supabase
       .from('interviews')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (interviewError || !interview) {
