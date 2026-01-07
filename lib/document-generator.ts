@@ -443,3 +443,164 @@ function createQASection(interview: InterviewData): Paragraph[] {
           new TextRun({
             text: `Q${index + 1}: `,
             bold: true,
+            color: '1a56db',
+            size: 24,
+          }),
+          new TextRun({
+            text: pair.question,
+            size: 24,
+          }),
+        ],
+        spacing: {
+          before: 300,
+          after: 200,
+        },
+      }),
+      
+      // Answer
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'A: ',
+            bold: true,
+            color: '16a34a',
+            size: 24,
+          }),
+          new TextRun({
+            text: pair.answer,
+            size: 24,
+          }),
+        ],
+        spacing: {
+          after: 400,
+        },
+        border: {
+          left: {
+            color: 'e5e7eb',
+            space: 8,
+            style: BorderStyle.SINGLE,
+            size: 24,
+          },
+        },
+      })
+    )
+  })
+  
+  if (conversationPairs.length === 0) {
+    paragraphs.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'No conversation data available.',
+            italics: true,
+            color: '999999',
+          })
+        ],
+      })
+    )
+  }
+  
+  return paragraphs
+}
+
+/**
+ * Create completion status section
+ */
+function createCompletionStatus(interview: InterviewData): Paragraph[] {
+  const totalQuestions = interview.conversation_history.filter(e => e.speaker === 'AI').length
+  const totalResponses = interview.conversation_history.filter(e => e.speaker === 'SME').length
+  
+  return [
+    new Paragraph({
+      text: 'Interview Statistics',
+      heading: HeadingLevel.HEADING_1,
+      pageBreakBefore: true,
+      spacing: {
+        before: 400,
+        after: 400,
+      },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'Total Questions Asked: ',
+          bold: true,
+        }),
+        new TextRun({
+          text: totalQuestions.toString(),
+        }),
+      ],
+      spacing: {
+        after: 200,
+      },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'Total Responses Captured: ',
+          bold: true,
+        }),
+        new TextRun({
+          text: totalResponses.toString(),
+        }),
+      ],
+      spacing: {
+        after: 200,
+      },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'Interview Status: ',
+          bold: true,
+        }),
+        new TextRun({
+          text: interview.status.charAt(0).toUpperCase() + interview.status.slice(1),
+          color: interview.status === 'completed' ? '16a34a' : interview.status === 'terminated' ? 'dc2626' : 'eab308',
+        }),
+      ],
+      spacing: {
+        after: 200,
+      },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'Interview Duration: ',
+          bold: true,
+        }),
+        new TextRun({
+          text: calculateDuration(interview.created_at, interview.updated_at),
+        }),
+      ],
+      spacing: {
+        after: 400,
+      },
+    }),
+  ]
+}
+
+/**
+ * Calculate duration between two dates
+ */
+function calculateDuration(start: string, end: string): string {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  const diffMs = endDate.getTime() - startDate.getTime()
+  
+  const minutes = Math.floor(diffMs / 60000)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  
+  if (days > 0) {
+    return `${days} day${days > 1 ? 's' : ''}, ${hours % 24} hour${hours % 24 !== 1 ? 's' : ''}`
+  } else if (hours > 0) {
+    return `${hours} hour${hours > 1 ? 's' : ''}, ${minutes % 60} minute${minutes % 60 !== 1 ? 's' : ''}`
+  } else {
+    return `${minutes} minute${minutes !== 1 ? 's' : ''}`
+  }
+}
