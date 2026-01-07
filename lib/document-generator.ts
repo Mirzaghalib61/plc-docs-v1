@@ -98,7 +98,7 @@ export async function generateInterviewDocument(interview: InterviewData): Promi
 /**
  * Create cover page
  */
-function createCoverPage(interview: InterviewData): Paragraph[] {
+function createCoverPage(interview: InterviewData): (Paragraph | Table)[] {
   const isComplete = interview.status === 'completed'
   const isTerminated = interview.status === 'terminated'
   
