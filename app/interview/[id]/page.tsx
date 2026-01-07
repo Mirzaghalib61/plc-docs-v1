@@ -332,16 +332,31 @@ export default function InterviewPage() {
     try {
       setDocumentGenerating(true)
       
-      // Small delay to ensure UI updates
-      await new Promise(resolve => setTimeout(resolve, 100))
+      const response = await fetch(`/api/interview/${interview.id}/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate document')
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob()
       
-      const downloadUrl = `/api/interview/${interview.id}/generate`
-      window.open(downloadUrl, '_blank')
+      // Create a download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Operations_Manual_${new Date().toISOString().split('T')[0]}.docx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
       
-      // Keep showing the loading state for a bit longer
-      setTimeout(() => {
-        setDocumentGenerating(false)
-      }, 5000) // 5 seconds
+      setDocumentGenerating(false)
     } catch (err) {
       console.error('Error generating document:', err)
       setError('Could not generate the document. Please try again.')
