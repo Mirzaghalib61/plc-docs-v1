@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { generateInterviewDocument } from '@/lib/document-generator'
+import { generateStructuredDocument } from '@/lib/document-generator-structured'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-export async function GET(
+export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -34,10 +34,10 @@ export async function GET(
     console.log('Generating document for:', interview.equipment_name)
 
     // Generate DOCX document
-    const documentBuffer = await generateInterviewDocument(interview)
+    const documentBuffer = await generateStructuredDocument(interview)
 
     // Create filename
-    const filename = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Documentation_${new Date().toISOString().split('T')[0]}.docx`
+    const filename = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_Operations_Manual_${new Date().toISOString().split('T')[0]}.docx`
 
     // Return file with proper headers
     return new NextResponse(new Blob([new Uint8Array(documentBuffer)]), {
