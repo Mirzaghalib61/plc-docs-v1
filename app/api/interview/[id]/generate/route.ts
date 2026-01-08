@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { generateInterviewDocument } from '@/lib/document-generator'
+import { generateStructuredDocument } from '@/lib/document-generator-structured'
 
 export async function POST(
   request: NextRequest,
@@ -25,7 +25,7 @@ export async function POST(
     }
 
     // Generate the document
-    const documentBuffer = await generateInterviewDocument(interview)
+    const documentBuffer = await generateStructuredDocument(interview)
     
     if (!documentBuffer) {
       return NextResponse.json(
