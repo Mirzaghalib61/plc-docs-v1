@@ -332,7 +332,7 @@ export default function InterviewPage() {
     try {
       setDocumentGenerating(true)
       
-      const response = await fetch(`/api/interview/${interview.id}/generate`, {
+      const response = await fetch('/api/interview/' + interview.id + '/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
