@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [generatingId, setGeneratingId] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -99,9 +100,40 @@ export default function DashboardPage() {
     }
   }
 
-  const handleGenerateDocument = (interviewId: string) => {
-    const downloadUrl = `/api/interview/${interviewId}/generate`
-    window.open(downloadUrl, '_blank')
+  const handleGenerateDocument = async (interviewId: string, equipmentName: string) => {
+    try {
+      setGeneratingId(interviewId)
+      setError('')
+
+      // POST request to generate document
+      const response = await fetch(`/api/interview/${interviewId}/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate document')
+      }
+
+      // Download the file
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${equipmentName.replace(/[^a-z0-9]/gi, '_')}_Operations_Manual_${new Date().toISOString().split('T')[0]}.docx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+      setGeneratingId(null)
+    } catch (err) {
+      console.error('Error generating document:', err)
+      setError('Could not generate the document. Please try again.')
+      setGeneratingId(null)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -291,10 +323,19 @@ export default function DashboardPage() {
                     
                     {(interview.status === 'completed' || interview.status === 'terminated') && (
                       <button
-                        onClick={() => handleGenerateDocument(interview.id)}
-                        className="w-full bg-green-50 text-green-700 px-4 py-2.5 rounded-lg hover:bg-green-100 font-medium transition-colors border border-green-200"
+                        onClick={() => handleGenerateDocument(interview.id, interview.equipment_name)}
+                        disabled={generatingId === interview.id}
+                        className="w-full bg-green-50 text-green-700 px-4 py-2.5 rounded-lg hover:bg-green-100 font-medium transition-colors border border-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        📄 Download Document
+                        {generatingId === interview.id ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Generating...
+                          </span>
+                        ) : '📄 Download Document'}
                       </button>
                     )}
                     

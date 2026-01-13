@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { generateStructuredDocument } from '@/lib/document-generator-structured'
+import { generateStructuredDocument } from '@/lib/document-generator'
+
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+// Handle OPTIONS requests (CORS preflight)
+export async function OPTIONS() {
+  return NextResponse.json({}, { status: 200, headers: corsHeaders })
+}
 
 // Handle GET requests by returning an error
 export async function GET(
@@ -9,7 +21,7 @@ export async function GET(
 ) {
   return NextResponse.json(
     { error: 'This endpoint requires a POST request. Please use POST method.' },
-    { status: 405 }
+    { status: 405, headers: corsHeaders }
   )
 }
 
@@ -20,7 +32,7 @@ export async function POST(
   try {
     const { id } = await params
     const supabase = await createClient()
-    
+
     // Get the interview
     const { data: interview, error: interviewError } = await supabase
       .from('interviews')
@@ -31,17 +43,17 @@ export async function POST(
     if (interviewError || !interview) {
       return NextResponse.json(
         { error: 'Interview not found' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       )
     }
 
     // Generate the document
     const documentBuffer = await generateStructuredDocument(interview)
-    
+
     if (!documentBuffer) {
       return NextResponse.json(
         { error: 'Failed to generate document' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
@@ -50,6 +62,7 @@ export async function POST(
     return new NextResponse(new Blob([new Uint8Array(documentBuffer)]), {
       status: 200,
       headers: {
+        ...corsHeaders,
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
@@ -58,7 +71,9 @@ export async function POST(
     console.error('Error generating document:', error)
     return NextResponse.json(
       { error: 'Failed to generate document' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
+
+export const maxDuration = 30
