@@ -33,19 +33,19 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-12 sm:pb-16">
         <div className="text-center">
           {/* Logo/Icon */}
-          <div className="flex justify-center mb-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
-              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex justify-center mb-6 sm:mb-8">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
+              <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 sm:mb-6 px-2">
             AI-Powered Equipment
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
@@ -54,16 +54,16 @@ export default function LandingPage() {
           </h1>
 
           {/* Subheadline */}
-          <p className="text-xl sm:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Capture critical knowledge from your subject matter experts before they retire. 
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-6 sm:mb-8 max-w-3xl mx-auto px-2">
+            Capture critical knowledge from your subject matter experts before they retire.
             Transform conversational interviews into professional operations manuals.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-12 sm:mb-16 px-4">
             <Link
               href="/signup"
-              className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all"
+              className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-base sm:text-lg font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all active:scale-95"
             >
               Get Started Free
               <svg className="ml-2 w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,22 +72,22 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-700 text-lg font-semibold rounded-lg border-2 border-gray-300 hover:border-blue-600 hover:text-blue-600 transition-all"
+              className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-white text-gray-700 text-base sm:text-lg font-semibold rounded-lg border-2 border-gray-300 hover:border-blue-600 hover:text-blue-600 transition-all active:scale-95"
             >
               Sign In
             </Link>
           </div>
 
           {/* Problem Statement */}
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg max-w-3xl mx-auto mb-16">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 sm:p-6 rounded-lg max-w-3xl mx-4 sm:mx-auto mb-12 sm:mb-16">
             <div className="flex items-start">
-              <svg className="w-6 h-6 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600 mt-0.5 mr-2 sm:mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <div className="text-left">
-                <p className="font-semibold text-gray-900 mb-2">The Silver Tsunami Challenge</p>
-                <p className="text-gray-700">
-                  Your most experienced engineers are retiring, taking decades of critical equipment knowledge with them. 
+                <p className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">The Silver Tsunami Challenge</p>
+                <p className="text-gray-700 text-sm sm:text-base">
+                  Your most experienced engineers are retiring, taking decades of critical equipment knowledge with them.
                   Traditional documentation takes months and often gets delayed or never completed.
                 </p>
               </div>
@@ -96,7 +96,7 @@ export default function LandingPage() {
         </div>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
           <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
               <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -135,10 +135,10 @@ export default function LandingPage() {
         </div>
 
         {/* How It Works */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 sm:p-12 mb-16">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">How It Works</h2>
-          
-          <div className="grid md:grid-cols-4 gap-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 md:p-12 mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-8 sm:mb-12">How It Works</h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             <div className="text-center">
               <div className="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-lg">
                 1
@@ -174,9 +174,9 @@ export default function LandingPage() {
         </div>
 
         {/* Use Cases */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">Perfect For</h2>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div className="mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-6 sm:mb-8 px-4">Perfect For</h2>
+          <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto px-4">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
               <h3 className="font-bold text-gray-900 mb-2">🏭 Manufacturing Plants</h3>
               <p className="text-gray-700 text-sm">Document PLC systems, production lines, and critical equipment before experienced operators retire</p>
@@ -197,12 +197,12 @@ export default function LandingPage() {
         </div>
 
         {/* Final CTA */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-12 text-center text-white shadow-xl">
-          <h2 className="text-3xl font-bold mb-4">Ready to Preserve Your Critical Knowledge?</h2>
-          <p className="text-xl mb-8 text-blue-100">Start documenting equipment knowledge in minutes, not months.</p>
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 sm:p-8 md:p-12 text-center text-white shadow-xl mx-4">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4">Ready to Preserve Your Critical Knowledge?</h2>
+          <p className="text-base sm:text-xl mb-6 sm:mb-8 text-blue-100">Start documenting equipment knowledge in minutes, not months.</p>
           <Link
             href="/signup"
-            className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 text-lg font-semibold rounded-lg hover:bg-gray-100 shadow-lg transition-all"
+            className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-white text-blue-600 text-base sm:text-lg font-semibold rounded-lg hover:bg-gray-100 shadow-lg transition-all active:scale-95"
           >
             Get Started Free
             <svg className="ml-2 w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -213,7 +213,7 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-50 border-t border-gray-200 py-8">
+      <footer className="bg-gray-50 border-t border-gray-200 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600">
           <p className="text-sm">
             Proof of Concept - AI Equipment Documentation System

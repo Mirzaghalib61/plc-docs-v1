@@ -28,6 +28,7 @@ export default function InterviewPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [documentGenerating, setDocumentGenerating] = useState(false)
+  const [qaDocGenerating, setQaDocGenerating] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioLoading, setAudioLoading] = useState(false)
   const params = useParams()
@@ -364,6 +365,44 @@ export default function InterviewPage() {
     }
   }
 
+  const handleGenerateQADocument = async () => {
+    if (!interview) return
+
+    try {
+      setQaDocGenerating(true)
+
+      const response = await fetch('/api/interview/' + interview.id + '/generate-qa', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate Q&A document')
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob()
+
+      // Create a download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${interview.equipment_name.replace(/[^a-z0-9]/gi, '_')}_QA_Transcript_${new Date().toISOString().split('T')[0]}.docx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+
+      setQaDocGenerating(false)
+    } catch (err) {
+      console.error('Error generating Q&A document:', err)
+      setError('Could not generate the Q&A document. Please try again.')
+      setQaDocGenerating(false)
+    }
+  }
+
   const handlePlayQuestion = async () => {
     if (!currentAiQuestion) return
 
@@ -565,26 +604,43 @@ export default function InterviewPage() {
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 mb-2">Interview Ended Early</h3>
                     <p className="text-gray-700 text-sm">
-                      This interview was ended before the AI finished gathering all critical information. 
-                      You can still generate a document with the information collected so far.
+                      This interview was ended before the AI finished gathering all critical information.
+                      You can still generate documents with the information collected so far.
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={handleGenerateDocument}
-                  disabled={documentGenerating}
-                  className="w-full sm:w-auto bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {documentGenerating ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Generating...
-                    </span>
-                  ) : '📄 Generate Partial Documentation'}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={handleGenerateDocument}
+                    disabled={documentGenerating || qaDocGenerating}
+                    className="flex-1 sm:flex-none bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {documentGenerating ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </span>
+                    ) : 'Partial Manual'}
+                  </button>
+                  <button
+                    onClick={handleGenerateQADocument}
+                    disabled={qaDocGenerating || documentGenerating}
+                    className="flex-1 sm:flex-none bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {qaDocGenerating ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </span>
+                    ) : 'Q&A Transcript'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -664,25 +720,42 @@ export default function InterviewPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">Interview Complete! 🎉</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Interview Complete!</h3>
                     <p className="text-gray-700 text-sm mb-3">{currentAiQuestion}</p>
                   </div>
                 </div>
-                <button
-                  onClick={handleGenerateDocument}
-                  disabled={documentGenerating}
-                  className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {documentGenerating ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Generating Document...
-                    </span>
-                  ) : '📄 Generate Final Documentation'}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={handleGenerateDocument}
+                    disabled={documentGenerating || qaDocGenerating}
+                    className="flex-1 sm:flex-none bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {documentGenerating ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </span>
+                    ) : 'Operations Manual'}
+                  </button>
+                  <button
+                    onClick={handleGenerateQADocument}
+                    disabled={qaDocGenerating || documentGenerating}
+                    className="flex-1 sm:flex-none bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {qaDocGenerating ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </span>
+                    ) : 'Q&A Transcript'}
+                  </button>
+                </div>
               </div>
             )}
 

@@ -579,12 +579,428 @@ function calculateDuration(start: string, end: string): string {
   const endDate = new Date(end)
   const diffMs = endDate.getTime() - startDate.getTime()
   const diffMins = Math.floor(diffMs / 60000)
-  
+
   if (diffMins < 60) {
     return `${diffMins} minutes`
   }
-  
+
   const hours = Math.floor(diffMins / 60)
   const mins = diffMins % 60
   return `${hours} hour${hours > 1 ? 's' : ''} ${mins} minutes`
+}
+
+/**
+ * Generate a verbatim Q&A transcript document
+ */
+export async function generateQADocument(interview: InterviewData): Promise<Buffer> {
+  log('Generating Q&A document for:', interview.equipment_name)
+
+  const children: any[] = []
+
+  // ========== COVER PAGE ==========
+  children.push(
+    new Paragraph({
+      text: interview.equipment_name,
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 }
+    }),
+    new Paragraph({
+      text: 'Interview Transcript',
+      heading: HeadingLevel.HEADING_1,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 }
+    }),
+    new Paragraph({
+      text: 'Verbatim Question & Answer Record',
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 }
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: interview.equipment_location,
+          italics: true
+        })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 400 }
+    })
+  )
+
+  // Document Info Table
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Equipment:', bold: true })] })],
+              shading: { fill: 'E8F5E9' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph(interview.equipment_name)],
+              width: { size: 70, type: WidthType.PERCENTAGE }
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Location:', bold: true })] })],
+              shading: { fill: 'E8F5E9' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph(interview.equipment_location)],
+              width: { size: 70, type: WidthType.PERCENTAGE }
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Subject Matter Expert:', bold: true })] })],
+              shading: { fill: 'E8F5E9' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph(`${interview.sme_name}, ${interview.sme_title}`)],
+              width: { size: 70, type: WidthType.PERCENTAGE }
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Interview Date:', bold: true })] })],
+              shading: { fill: 'E8F5E9' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph(new Date(interview.created_at).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }))],
+              width: { size: 70, type: WidthType.PERCENTAGE }
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Interview Status:', bold: true })] })],
+              shading: { fill: 'E8F5E9' },
+              width: { size: 30, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                children: [
+                  new TextRun({
+                    text: interview.status === 'completed' ? 'COMPLETE' : 'INCOMPLETE',
+                    bold: true,
+                    color: interview.status === 'completed' ? '4CAF50' : 'FF9800'
+                  })
+                ]
+              })],
+              width: { size: 70, type: WidthType.PERCENTAGE }
+            })
+          ]
+        })
+      ],
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        left: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        right: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' }
+      }
+    }),
+    new Paragraph({
+      text: '',
+      spacing: { after: 400 }
+    })
+  )
+
+  // ========== Q&A TRANSCRIPT ==========
+  children.push(
+    new Paragraph({
+      text: 'Interview Transcript',
+      heading: HeadingLevel.HEADING_1,
+      spacing: { before: 200, after: 300 },
+      pageBreakBefore: true
+    })
+  )
+
+  // Add each Q&A exchange
+  let questionNumber = 0
+  const history = interview.conversation_history || []
+
+  for (let i = 0; i < history.length; i++) {
+    const entry = history[i]
+    const timestamp = new Date(entry.timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+
+    if (entry.speaker === 'AI') {
+      questionNumber++
+
+      // Question header with number
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Question ${questionNumber}`,
+              bold: true,
+              size: 24,
+              color: '1565C0'
+            }),
+            new TextRun({
+              text: `  [${timestamp}]`,
+              size: 20,
+              color: '757575'
+            })
+          ],
+          spacing: { before: 300, after: 100 },
+          shading: { fill: 'E3F2FD' }
+        })
+      )
+
+      // Question text
+      children.push(
+        new Paragraph({
+          text: entry.text,
+          spacing: { after: 200 }
+        })
+      )
+    } else if (entry.speaker === 'SME') {
+      // Answer header
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Answer`,
+              bold: true,
+              size: 24,
+              color: '2E7D32'
+            }),
+            new TextRun({
+              text: `  [${timestamp}]`,
+              size: 20,
+              color: '757575'
+            }),
+            new TextRun({
+              text: `  - ${interview.sme_name}`,
+              italics: true,
+              size: 20,
+              color: '757575'
+            })
+          ],
+          spacing: { before: 100, after: 100 },
+          shading: { fill: 'E8F5E9' }
+        })
+      )
+
+      // Answer text
+      children.push(
+        new Paragraph({
+          text: entry.text,
+          spacing: { after: 300 }
+        })
+      )
+
+      // Separator between Q&A pairs
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: '─'.repeat(50),
+              color: 'E0E0E0'
+            })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 }
+        })
+      )
+    } else if (entry.speaker === 'SYSTEM') {
+      // System message (e.g., interview ended early)
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'System Notice',
+              bold: true,
+              size: 24,
+              color: 'D32F2F'
+            }),
+            new TextRun({
+              text: `  [${timestamp}]`,
+              size: 20,
+              color: '757575'
+            })
+          ],
+          spacing: { before: 200, after: 100 },
+          shading: { fill: 'FFEBEE' }
+        }),
+        new Paragraph({
+          text: entry.text,
+          spacing: { after: 300 }
+        })
+      )
+    }
+  }
+
+  // ========== SUMMARY ==========
+  children.push(
+    new Paragraph({
+      text: 'Interview Summary',
+      heading: HeadingLevel.HEADING_1,
+      spacing: { before: 400, after: 300 },
+      pageBreakBefore: true
+    })
+  )
+
+  // Count statistics
+  const aiEntries = history.filter(e => e.speaker === 'AI')
+  const smeEntries = history.filter(e => e.speaker === 'SME')
+
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Total Questions Asked:', bold: true })] })],
+              shading: { fill: 'F5F5F5' },
+              width: { size: 50, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph(aiEntries.length.toString())],
+              width: { size: 50, type: WidthType.PERCENTAGE }
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Total Responses:', bold: true })] })],
+              shading: { fill: 'F5F5F5' },
+              width: { size: 50, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph(smeEntries.length.toString())],
+              width: { size: 50, type: WidthType.PERCENTAGE }
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Interview Duration:', bold: true })] })],
+              shading: { fill: 'F5F5F5' },
+              width: { size: 50, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph(calculateDuration(interview.created_at, interview.updated_at))],
+              width: { size: 50, type: WidthType.PERCENTAGE }
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Interview Completion:', bold: true })] })],
+              shading: { fill: 'F5F5F5' },
+              width: { size: 50, type: WidthType.PERCENTAGE }
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                children: [
+                  new TextRun({
+                    text: interview.status === 'completed' ? 'Completed Successfully' :
+                          interview.status === 'terminated' ? 'Ended Early' : 'In Progress',
+                    bold: true,
+                    color: interview.status === 'completed' ? '4CAF50' :
+                           interview.status === 'terminated' ? 'FF9800' : '2196F3'
+                  })
+                ]
+              })],
+              width: { size: 50, type: WidthType.PERCENTAGE }
+            })
+          ]
+        })
+      ],
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        left: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        right: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' },
+        insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' }
+      }
+    })
+  )
+
+  // Footer
+  children.push(
+    new Paragraph({
+      text: '',
+      spacing: { before: 400 }
+    }),
+    new Paragraph({
+      text: '---',
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 200, after: 200 }
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'Generated by AI Documentation System',
+          italics: true,
+          size: 20
+        })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 50 }
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'Verbatim Interview Record',
+          italics: true,
+          size: 18,
+          color: '666666'
+        })
+      ],
+      alignment: AlignmentType.CENTER
+    })
+  )
+
+  // Create document
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: {
+            top: 1440,
+            right: 1440,
+            bottom: 1440,
+            left: 1440
+          }
+        }
+      },
+      children: children
+    }]
+  })
+
+  const buffer = await Packer.toBuffer(doc)
+  log('Q&A document generated successfully, size:', buffer.length)
+
+  return buffer
 }

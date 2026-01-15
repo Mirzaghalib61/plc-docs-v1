@@ -52,77 +52,77 @@ export default function NewInterviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white rounded shadow p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">New Interview</h1>
-            <Link 
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="max-w-2xl mx-auto p-4 sm:p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-5 sm:p-6 md:p-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">New Interview</h1>
+            <Link
               href="/dashboard"
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 hover:text-blue-700 font-medium text-sm sm:text-base active:scale-95 transition-all"
             >
-              Back to Dashboard
+              ← Back to Dashboard
             </Link>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+            <div className="mb-4 p-3 sm:p-4 bg-red-50 text-red-700 rounded-lg border-l-4 border-red-500 text-sm sm:text-base">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
+            <div className="mb-5">
+              <label className="block text-sm font-semibold mb-2 text-gray-700">
                 SME Name *
               </label>
               <input
                 type="text"
                 value={smeName}
                 onChange={(e) => setSmeName(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                 required
                 placeholder="John Smith"
               />
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
+            <div className="mb-5">
+              <label className="block text-sm font-semibold mb-2 text-gray-700">
                 SME Title *
               </label>
               <input
                 type="text"
                 value={smeTitle}
                 onChange={(e) => setSmeTitle(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                 required
                 placeholder="Senior PLC Engineer"
               />
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
+            <div className="mb-5">
+              <label className="block text-sm font-semibold mb-2 text-gray-700">
                 Equipment Name *
               </label>
               <input
                 type="text"
                 value={equipmentName}
                 onChange={(e) => setEquipmentName(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                 required
                 placeholder="Mixing Line #3"
               />
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-semibold mb-2 text-gray-700">
                 Equipment Location *
               </label>
               <input
                 type="text"
                 value={equipmentLocation}
                 onChange={(e) => setEquipmentLocation(e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                 required
                 placeholder="Building A, Floor 2"
               />
@@ -131,7 +131,7 @@ export default function NewInterviewPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 sm:py-3.5 rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-400 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all active:scale-95 disabled:active:scale-100"
             >
               {loading ? 'Creating...' : 'Start Interview'}
             </button>
