@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import VoiceRecorder from '@/components/VoiceRecorder'
+import ConversationModeRecorder from '@/components/ConversationModeRecorder'
 
 interface Interview {
   id: string
@@ -31,6 +32,9 @@ export default function InterviewPage() {
   const [qaDocGenerating, setQaDocGenerating] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioLoading, setAudioLoading] = useState(false)
+  const [isConversationMode, setIsConversationMode] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<{ index: number; text: string } | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
   const params = useParams()
   const router = useRouter()
   const voiceRecorderKeyRef = useRef(0)
@@ -457,6 +461,41 @@ export default function InterviewPage() {
     }
   }
 
+  const handleEditAnswer = async () => {
+    if (!editingEntry || !interview) return
+
+    try {
+      setEditSaving(true)
+      setError('')
+
+      const response = await fetch(`/api/interview/${interview.id}/update-answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entryIndex: editingEntry.index,
+          newText: editingEntry.text,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update answer')
+      }
+
+      // Update local state
+      const updatedHistory = [...(interview.conversation_history || [])]
+      updatedHistory[editingEntry.index] = data.updatedEntry
+      setInterview({ ...interview, conversation_history: updatedHistory })
+      setEditingEntry(null)
+    } catch (err: any) {
+      console.error('Error updating answer:', err)
+      setError(err.message || 'Could not update the answer. Please try again.')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   const retryInitialize = () => {
     setError('')
     setLoading(true)
@@ -601,8 +640,10 @@ export default function InterviewPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">Interview Ended Early</h3>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">Interview Ended Early</h3>
+                      </div>
                     <p className="text-gray-700 text-sm">
                       This interview was ended before the AI finished gathering all critical information.
                       You can still generate documents with the information collected so far.
@@ -640,6 +681,17 @@ export default function InterviewPage() {
                       </span>
                     ) : 'Q&A Transcript'}
                   </button>
+                  {smeEntries.length > 0 && (
+                    <button
+                      onClick={() => setShowHistory(true)}
+                      className="flex-1 sm:flex-none bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 font-medium transition-all shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit Answers
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -654,35 +706,43 @@ export default function InterviewPage() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold text-blue-900 text-sm">Current Question:</h3>
-                      <button
-                        onClick={isPlaying ? handleStopAudio : handlePlayQuestion}
-                        disabled={audioLoading}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium text-blue-700 disabled:opacity-50"
-                      >
-                        {audioLoading ? (
-                          <>
-                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Loading...
-                          </>
-                        ) : isPlaying ? (
-                          <>
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            Stop
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                            </svg>
-                            Play Question
-                          </>
-                        )}
-                      </button>
+                      {/* Only show manual play button in manual mode */}
+                      {!isConversationMode && (
+                        <button
+                          onClick={isPlaying ? handleStopAudio : handlePlayQuestion}
+                          disabled={audioLoading}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium text-blue-700 disabled:opacity-50"
+                        >
+                          {audioLoading ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Loading...
+                            </>
+                          ) : isPlaying ? (
+                            <>
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              Stop
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                              </svg>
+                              Play Question
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {isConversationMode && (
+                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
+                          Auto-play enabled
+                        </span>
+                      )}
                     </div>
                     <p className="text-gray-800 text-base leading-relaxed whitespace-pre-wrap">
                       {currentAiQuestion}
@@ -719,7 +779,7 @@ export default function InterviewPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900 mb-2">Interview Complete!</h3>
                     <p className="text-gray-700 text-sm mb-3">{currentAiQuestion}</p>
                   </div>
@@ -755,50 +815,108 @@ export default function InterviewPage() {
                       </span>
                     ) : 'Q&A Transcript'}
                   </button>
+                  {smeEntries.length > 0 && (
+                    <button
+                      onClick={() => setShowHistory(true)}
+                      className="flex-1 sm:flex-none bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 font-medium transition-all shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit Answers
+                    </button>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Voice Recorder with Instructions */}
-            {!isCompleted && !isTerminated && isInProgress && !aiThinking ? (
+            {/* Mode Toggle and Voice Recorder */}
+            {!isCompleted && !isTerminated && isInProgress ? (
               <>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                  {/* Helpful Instructions */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 p-4 rounded-t-xl">
-                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      How it works
-                    </h4>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      <li className="flex items-start gap-2">
-                        <span className="text-blue-600 font-bold">1.</span>
-                        <span>Click "Start Recording" and speak naturally - just like having a conversation</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-blue-600 font-bold">2.</span>
-                        <span>Click "Stop & Submit" when you're done answering</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-blue-600 font-bold">3.</span>
-                        <span>The AI will ask follow-up questions to get more details</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-blue-600 font-bold">4.</span>
-                        <span className="font-semibold text-blue-700">Don't know the answer? Click "Skip This Section" below</span>
-                      </li>
-                    </ul>
+                {/* Mode Toggle - disabled while AI is thinking */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Interview Mode</h4>
+                      <p className="text-sm text-gray-600">
+                        {isConversationMode
+                          ? 'Voice conversation with automatic turn-taking'
+                          : 'Manual recording with click controls'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm ${!isConversationMode ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                        Manual
+                      </span>
+                      <button
+                        onClick={() => setIsConversationMode(!isConversationMode)}
+                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                          isConversationMode ? 'bg-indigo-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform ${
+                            isConversationMode ? 'translate-x-7' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      <span className={`text-sm ${isConversationMode ? 'text-indigo-600 font-medium' : 'text-gray-500'}`}>
+                        Conversation
+                      </span>
+                    </div>
                   </div>
-                  
-                  <VoiceRecorder 
-                    key={voiceRecorderKeyRef.current}
-                    interviewId={interview?.id || ''}
-                    onTranscriptUpdate={() => {}}
-                    onRecordingComplete={handleTranscriptComplete}
-                  />
                 </div>
-                
+
+                {isConversationMode ? (
+                  /* Conversation Mode - stays mounted even during AI thinking */
+                  <ConversationModeRecorder
+                    key={`conv-${voiceRecorderKeyRef.current}`}
+                    interviewId={interview?.id || ''}
+                    currentQuestion={currentAiQuestion}
+                    isAiThinking={aiThinking}
+                    onTranscriptComplete={handleTranscriptComplete}
+                    onError={setError}
+                  />
+                ) : !aiThinking ? (
+                  /* Manual Mode - only shown when AI is not thinking */
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+                    {/* Helpful Instructions */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 p-4 rounded-t-xl">
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        How it works
+                      </h4>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 font-bold">1.</span>
+                          <span>Click "Start Recording" and speak naturally - just like having a conversation</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 font-bold">2.</span>
+                          <span>Click "Stop & Submit" when you're done answering</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 font-bold">3.</span>
+                          <span>The AI will ask follow-up questions to get more details</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 font-bold">4.</span>
+                          <span className="font-semibold text-blue-700">Don't know the answer? Click "Skip This Section" below</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <VoiceRecorder
+                      key={voiceRecorderKeyRef.current}
+                      interviewId={interview?.id || ''}
+                      onTranscriptUpdate={() => {}}
+                      onRecordingComplete={handleTranscriptComplete}
+                    />
+                  </div>
+                ) : null}
+
                 {/* Skip Section Button */}
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
@@ -903,11 +1021,11 @@ export default function InterviewPage() {
                 <div className="space-y-3 max-h-[500px] overflow-y-auto">
                   {conversationEntries.length > 0 ? (
                     conversationEntries.map((entry: any, index: number) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className={`p-3 rounded-lg text-xs ${
-                          entry.speaker === 'AI' 
-                            ? 'bg-blue-50 border-l-2 border-blue-400' 
+                          entry.speaker === 'AI'
+                            ? 'bg-blue-50 border-l-2 border-blue-400'
                             : entry.speaker === 'SYSTEM'
                             ? 'bg-red-50 border-l-2 border-red-400'
                             : 'bg-green-50 border-l-2 border-green-400'
@@ -915,14 +1033,26 @@ export default function InterviewPage() {
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className={`text-xs font-semibold ${
-                            entry.speaker === 'AI' ? 'text-blue-700' : 
+                            entry.speaker === 'AI' ? 'text-blue-700' :
                             entry.speaker === 'SYSTEM' ? 'text-red-700' : 'text-green-700'
                           }`}>
                             {entry.speaker === 'AI' ? '🤖 AI' : entry.speaker === 'SYSTEM' ? '⚠️ System' : '👤 You'}
+                            {entry.edited && <span className="ml-1 text-gray-400">(edited)</span>}
                           </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {entry.speaker === 'SME' && (
+                              <button
+                                onClick={() => setEditingEntry({ index, text: entry.text })}
+                                className="text-green-600 hover:text-green-700 hover:underline font-medium"
+                                title="Edit this answer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
                         </div>
                         <p className="text-gray-700 leading-relaxed">
                           {entry.text.length > 120 ? `${entry.text.substring(0, 120)}...` : entry.text}
@@ -939,6 +1069,65 @@ export default function InterviewPage() {
             </div>
           </div>
         </div>
+
+        {/* Edit Answer Modal */}
+        {editingEntry && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">Edit Your Answer</h3>
+                  <button
+                    onClick={() => setEditingEntry(null)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your changes will be reflected in both the Q&A Transcript and Operations Manual.
+                </p>
+              </div>
+
+              <div className="p-6">
+                <textarea
+                  value={editingEntry.text}
+                  onChange={(e) => setEditingEntry({ ...editingEntry, text: e.target.value })}
+                  className="w-full h-48 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-800"
+                  placeholder="Enter your answer..."
+                  disabled={editSaving}
+                />
+              </div>
+
+              <div className="p-6 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+                <button
+                  onClick={() => setEditingEntry(null)}
+                  disabled={editSaving}
+                  className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditAnswer}
+                  disabled={editSaving || !editingEntry.text.trim()}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {editSaving ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </span>
+                  ) : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Document Generation Loading Overlay */}
         {documentGenerating && (
