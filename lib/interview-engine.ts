@@ -70,9 +70,54 @@ export async function getNextQuestion(
       }]
     })
 
-    const aiResponse = response.content[0].text
+    let aiResponse = response.content[0].text
     const isComplete = aiResponse.includes('[INTERVIEW_COMPLETE]')
-    const cleanResponse = aiResponse.replace('[INTERVIEW_COMPLETE]', '').trim()
+
+    // Remove completion marker
+    let cleanResponse = aiResponse.replace('[INTERVIEW_COMPLETE]', '').trim()
+
+    // CRITICAL: Prevent hallucinated conversations
+    // If the AI outputs simulated SME responses (e.g., "[SME]:", "SME:", or multiple turns),
+    // we need to extract only the AI's first question/statement
+    const halluccinationPatterns = [
+      /\[SME\]:/i,
+      /\nSME:/i,
+      /\n\[User\]:/i,
+      /\nUser:/i,
+      /\n\[Expert\]:/i,
+      /\nExpert:/i,
+      /\n\[Response\]:/i,
+      /\nResponse:/i,
+    ]
+
+    for (const pattern of halluccinationPatterns) {
+      const match = cleanResponse.search(pattern)
+      if (match !== -1) {
+        // Only keep the text before any simulated response
+        cleanResponse = cleanResponse.substring(0, match).trim()
+        console.warn('[interview-engine] Detected and removed hallucinated SME response from AI output')
+        break
+      }
+    }
+
+    // Also check for multiple question patterns (AI asking multiple questions in sequence)
+    // Look for patterns like question followed by quoted response followed by another question
+    const multiTurnPattern = /["'].*?["']\s*\n\s*["']/
+    if (multiTurnPattern.test(cleanResponse)) {
+      // Extract just the first question
+      const firstQuestionEnd = cleanResponse.indexOf('\n')
+      if (firstQuestionEnd !== -1 && firstQuestionEnd < cleanResponse.length - 10) {
+        const potentialFirst = cleanResponse.substring(0, firstQuestionEnd).trim()
+        // Only truncate if the first part is substantial (at least 20 chars)
+        if (potentialFirst.length >= 20) {
+          cleanResponse = potentialFirst
+          console.warn('[interview-engine] Detected multi-turn response, extracted first question only')
+        }
+      }
+    }
+
+    // Remove any AI speaker prefix that might have been added
+    cleanResponse = cleanResponse.replace(/^\[AI\]:\s*/i, '').replace(/^AI:\s*/i, '').trim()
 
     return {
       nextQuestion: cleanResponse,

@@ -23,6 +23,9 @@ export default function ConversationModeRecorder({
   const [transcript, setTranscript] = useState<string[]>([])
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null)
   const [status, setStatus] = useState<'idle' | 'playing' | 'listening' | 'processing' | 'waiting'>('idle')
+  const [ttsDisabled, setTtsDisabled] = useState(false)
+  const ttsFailCountRef = useRef(0)
+  const MAX_TTS_FAILURES = 5
 
   // Use ref to track active state for callbacks
   const isActiveRef = useRef(false)
@@ -46,8 +49,15 @@ export default function ConversationModeRecorder({
 
   // Play the current question using TTS
   const playQuestion = useCallback(async () => {
-    console.log('playQuestion called, currentQuestion:', !!currentQuestion, 'isPlayingQuestion:', isPlayingQuestion)
-    if (!currentQuestion || isPlayingQuestion) return
+    console.log('playQuestion called, currentQuestion:', !!currentQuestion, 'isPlayingQuestion:', isPlayingQuestion, 'ttsDisabled:', ttsDisabled)
+    if (!currentQuestion || isPlayingQuestion || ttsDisabled) {
+      // If TTS is disabled, skip directly to listening
+      if (ttsDisabled && isActiveRef.current) {
+        lastQuestionRef.current = currentQuestion
+        startListening()
+      }
+      return
+    }
 
     try {
       setIsPlayingQuestion(true)
@@ -67,6 +77,9 @@ export default function ConversationModeRecorder({
       const audioBlob = await response.blob()
       const audioUrl = URL.createObjectURL(audioBlob)
       console.log('Audio blob created, setting up playback...')
+
+      // Reset failure count on success
+      ttsFailCountRef.current = 0
 
       if (audioRef.current) {
         audioRef.current.pause()
@@ -94,7 +107,7 @@ export default function ConversationModeRecorder({
       audio.onerror = (e) => {
         console.log('Audio error:', e)
         setIsPlayingQuestion(false)
-        onError?.('Could not play audio. Please check your speakers.')
+        handleTtsFailure()
         // Still try to start listening even if audio fails - use ref for latest state
         if (isActiveRef.current) {
           startListening()
@@ -109,13 +122,25 @@ export default function ConversationModeRecorder({
     } catch (err) {
       console.error('TTS error:', err)
       setIsPlayingQuestion(false)
-      onError?.('Could not play the question.')
+      handleTtsFailure()
       // Still try to start listening - use ref for latest state
       if (isActiveRef.current) {
+        lastQuestionRef.current = currentQuestion
         startListening()
       }
     }
-  }, [currentQuestion, isPlayingQuestion, onError])
+  }, [currentQuestion, isPlayingQuestion, ttsDisabled])
+
+  // Handle TTS failures and disable after max attempts
+  const handleTtsFailure = useCallback(() => {
+    ttsFailCountRef.current += 1
+    console.log(`TTS failure ${ttsFailCountRef.current}/${MAX_TTS_FAILURES}`)
+
+    if (ttsFailCountRef.current >= MAX_TTS_FAILURES) {
+      setTtsDisabled(true)
+      onError?.('Voice playback is unavailable. Questions will be displayed on screen - please read them and respond. The interview will continue in text mode.')
+    }
+  }, [onError])
 
   // Effect to auto-play new questions when in conversation mode
   useEffect(() => {
@@ -453,6 +478,11 @@ export default function ConversationModeRecorder({
   }, [])
 
   const getStatusMessage = () => {
+    if (ttsDisabled && status === 'listening') {
+      return silenceCountdown !== null
+        ? `Listening... (submitting in ${silenceCountdown}s)`
+        : 'Read the question above, then speak your response...'
+    }
     switch (status) {
       case 'playing':
         return 'AI is asking a question...'
@@ -465,7 +495,7 @@ export default function ConversationModeRecorder({
       case 'waiting':
         return 'Processing your response...'
       default:
-        return 'Ready to start conversation'
+        return ttsDisabled ? 'Voice playback unavailable - text mode active' : 'Ready to start conversation'
     }
   }
 
@@ -493,7 +523,11 @@ export default function ConversationModeRecorder({
             <div>
               <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                 Conversation Mode
-                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Voice AI</span>
+                {ttsDisabled ? (
+                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Text Mode</span>
+                ) : (
+                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Voice AI</span>
+                )}
               </h4>
               <p className="text-sm text-gray-600">{getStatusMessage()}</p>
             </div>
@@ -523,6 +557,21 @@ export default function ConversationModeRecorder({
           )}
         </div>
       </div>
+
+      {/* TTS Disabled Banner */}
+      {ttsDisabled && isActive && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">
+          <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-yellow-800">Voice playback unavailable</p>
+              <p className="text-xs text-yellow-700">Please read the question displayed above and speak your response. The interview continues normally.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="p-6">
