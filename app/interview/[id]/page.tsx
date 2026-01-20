@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import VoiceRecorder from '@/components/VoiceRecorder'
 import ConversationModeRecorder from '@/components/ConversationModeRecorder'
+import RealtimeConversationRecorder from '@/components/RealtimeConversationRecorder'
 
 interface Interview {
   id: string
@@ -32,7 +33,7 @@ export default function InterviewPage() {
   const [qaDocGenerating, setQaDocGenerating] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioLoading, setAudioLoading] = useState(false)
-  const [isConversationMode, setIsConversationMode] = useState(false)
+  const [interviewMode, setInterviewMode] = useState<'manual' | 'conversation' | 'realtime'>('manual')
   const [editingEntry, setEditingEntry] = useState<{ index: number; text: string } | null>(null)
   const [editSaving, setEditSaving] = useState(false)
   const params = useParams()
@@ -707,7 +708,7 @@ export default function InterviewPage() {
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold text-blue-900 text-sm">Current Question:</h3>
                       {/* Only show manual play button in manual mode */}
-                      {!isConversationMode && (
+                      {interviewMode === 'manual' && (
                         <button
                           onClick={isPlaying ? handleStopAudio : handlePlayQuestion}
                           disabled={audioLoading}
@@ -738,9 +739,14 @@ export default function InterviewPage() {
                           )}
                         </button>
                       )}
-                      {isConversationMode && (
+                      {interviewMode === 'conversation' && (
                         <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
                           Auto-play enabled
+                        </span>
+                      )}
+                      {interviewMode === 'realtime' && (
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                          Real-time mode
                         </span>
                       )}
                     </div>
@@ -833,41 +839,158 @@ export default function InterviewPage() {
             {/* Mode Toggle and Voice Recorder */}
             {!isCompleted && !isTerminated && isInProgress ? (
               <>
-                {/* Mode Toggle - disabled while AI is thinking */}
+                {/* Mode Selector - Three options */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                       <h4 className="font-semibold text-gray-900">Interview Mode</h4>
                       <p className="text-sm text-gray-600">
-                        {isConversationMode
+                        {interviewMode === 'realtime'
+                          ? 'Real-time voice with ~300ms latency'
+                          : interviewMode === 'conversation'
                           ? 'Voice conversation with automatic turn-taking'
                           : 'Manual recording with click controls'}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-sm ${!isConversationMode ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
-                        Manual
-                      </span>
+                    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                       <button
-                        onClick={() => setIsConversationMode(!isConversationMode)}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                          isConversationMode ? 'bg-indigo-600' : 'bg-gray-300'
+                        onClick={() => setInterviewMode('manual')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          interviewMode === 'manual'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
-                        <span
-                          className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform ${
-                            isConversationMode ? 'translate-x-7' : 'translate-x-1'
-                          }`}
-                        />
+                        Manual
                       </button>
-                      <span className={`text-sm ${isConversationMode ? 'text-indigo-600 font-medium' : 'text-gray-500'}`}>
+                      <button
+                        onClick={() => setInterviewMode('conversation')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          interviewMode === 'conversation'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
                         Conversation
-                      </span>
+                      </button>
+                      <button
+                        onClick={() => setInterviewMode('realtime')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
+                          interviewMode === 'realtime'
+                            ? 'bg-white text-emerald-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                        </svg>
+                        Real-Time
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {isConversationMode ? (
+                {/* Real-Time Mode */}
+                {interviewMode === 'realtime' ? (
+                  <RealtimeConversationRecorder
+                    key={`realtime-${voiceRecorderKeyRef.current}`}
+                    interviewId={interview?.id || ''}
+                    equipmentName={interview?.equipment_name || ''}
+                    smeName={interview?.sme_name || ''}
+                    smeTitle={interview?.sme_title || ''}
+                    systemInstructions={`You are a skilled technical interviewer capturing equipment knowledge from ${interview?.sme_name}, ${interview?.sme_title}. Equipment: ${interview?.equipment_name} at ${interview?.equipment_location}.
+
+BE A SKILLED HUMAN INTERVIEWER:
+You behave like an experienced journalist or consultant who knows how to extract valuable information. You're not reading from a script - you're having a real conversation.
+
+WHEN ANSWERS ARE VAGUE OR INCOMPLETE:
+- Push back politely: "I want to make sure I understand - when you say 'be careful', what specifically should someone watch out for?"
+- Ask for numbers/specifics: "About how long does that take?" or "What temperature should it reach?"
+- Request examples: "Can you walk me through a time that actually happened?"
+- Challenge assumptions: "What if someone doesn't have that experience - how would they know?"
+
+WHEN ANSWERS ARE GOOD AND COMPLETE:
+- Acknowledge briefly: "Got it" or "That's clear"
+- Move on promptly to the next topic - don't over-dwell
+- You have good judgment about when you have enough detail
+
+CONVERSATION FLOW:
+1. Ask about the most critical thing to know about this equipment
+2. Based on their answer, dig deeper OR move to equipment quirks/gotchas
+3. Explore common mistakes people make
+4. Get step-by-step procedures for key operations (push for details on tricky steps)
+5. Cover troubleshooting - common problems and fixes
+
+YOUR INTERVIEWING STYLE:
+- Be direct and efficient, not overly chatty
+- Short acknowledgments: "OK", "Got it", "Makes sense", "Right"
+- Push for clarity: "Wait, I'm not sure I follow - can you explain that differently?"
+- Connect topics: "You mentioned the pressure earlier - how does that relate to this?"
+- Know when enough is enough - if they've given a thorough answer, move on
+
+RULES:
+- ONE question at a time, then listen
+- If an answer is too vague after 2 attempts, note it and move on
+- Never invent information
+- Keep responses brief - you're here to listen, not talk
+
+When you've covered the key topics (typically 10-15 exchanges with good depth), wrap up naturally and include [INTERVIEW_COMPLETE].`}
+                    onTranscriptUpdate={async (aiText, userText) => {
+                      if (!interview || !userId) return
+
+                      // Save the conversation turn to database
+                      const updatedHistory = [...(interview.conversation_history || [])]
+
+                      if (aiText) {
+                        updatedHistory.push({
+                          timestamp: new Date().toISOString(),
+                          text: aiText.replace('[INTERVIEW_COMPLETE]', '').trim(),
+                          phase: interview.current_phase,
+                          speaker: 'AI'
+                        })
+                      }
+
+                      if (userText) {
+                        updatedHistory.push({
+                          timestamp: new Date().toISOString(),
+                          text: userText,
+                          phase: interview.current_phase,
+                          speaker: 'SME'
+                        })
+                      }
+
+                      // Update database
+                      await supabase
+                        .from('interviews')
+                        .update({
+                          conversation_history: updatedHistory,
+                          updated_at: new Date().toISOString()
+                        })
+                        .eq('id', interview.id)
+
+                      // Update local state
+                      setInterview({ ...interview, conversation_history: updatedHistory })
+                      if (aiText) {
+                        setCurrentAiQuestion(aiText.replace('[INTERVIEW_COMPLETE]', '').trim())
+                      }
+                    }}
+                    onConversationEnd={async () => {
+                      if (!interview) return
+
+                      // Mark interview as completed
+                      await supabase
+                        .from('interviews')
+                        .update({
+                          status: 'completed',
+                          updated_at: new Date().toISOString()
+                        })
+                        .eq('id', interview.id)
+
+                      setInterview({ ...interview, status: 'completed' })
+                    }}
+                    onError={setError}
+                  />
+                ) : interviewMode === 'conversation' ? (
                   /* Conversation Mode - stays mounted even during AI thinking */
                   <ConversationModeRecorder
                     key={`conv-${voiceRecorderKeyRef.current}`}
@@ -917,21 +1040,23 @@ export default function InterviewPage() {
                   </div>
                 ) : null}
 
-                {/* Skip Section Button */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-900 mb-1">Don't know the answer to this question?</p>
-                      <p className="text-xs text-gray-600">It's okay to skip sections. The document will note what wasn't covered.</p>
+                {/* Skip Section Button - only show for non-realtime modes */}
+                {interviewMode !== 'realtime' && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900 mb-1">Don't know the answer to this question?</p>
+                        <p className="text-xs text-gray-600">It's okay to skip sections. The document will note what wasn't covered.</p>
+                      </div>
+                      <button
+                        onClick={handleSkipSection}
+                        className="ml-4 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium text-sm transition-colors whitespace-nowrap"
+                      >
+                        Skip This Section →
+                      </button>
                     </div>
-                    <button
-                      onClick={handleSkipSection}
-                      className="ml-4 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium text-sm transition-colors whitespace-nowrap"
-                    >
-                      Skip This Section →
-                    </button>
                   </div>
-                </div>
+                )}
               </>
             ) : isPaused ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
